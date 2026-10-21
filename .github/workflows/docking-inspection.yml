@@ -1,0 +1,33 @@
+# Inspects each pull request against the current task and leaves one comment
+# with the results. A failed inspection fails this check.
+name: Docking inspection
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: inspection-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    if: github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      # The inspector comes from the default branch, so a pull request can't change its own rules.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/station.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
