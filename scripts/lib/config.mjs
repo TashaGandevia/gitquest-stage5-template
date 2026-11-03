@@ -12,6 +12,7 @@ export const README_PATH = 'README.md';
 
 // Where the player redeems their completion code. Station control adds
 // ?repo=<owner/name>&code=<code> to the link. Change it to GitQuest's real page.
+// TODO This needs a link and to be set up within GitQuest
 export const GITQUEST_REDEEM_URL = 'https://gitquest.example/redeem';
 
 // Completion codes use letters and digits that can't be confused when copied
