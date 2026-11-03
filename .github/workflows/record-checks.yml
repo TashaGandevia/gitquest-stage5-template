@@ -1,0 +1,74 @@
+# Record checks: continuous integration for the docking log. Runs whenever a
+# pull request is opened or updated, and inspects that exact revision. Each
+# kind of record has its own step, so a failure names what to look at.
+#
+# Station control dispatches this workflow by hand for its own pull request,
+# because pull requests made with GITHUB_TOKEN don't trigger it.
+name: Record checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: Pull request number to inspect
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write # Handover readiness, and results for dispatched runs
+
+concurrency:
+  group: record-checks-${{ github.event.pull_request.number || inputs.pull_request }}
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    name: Inspect records
+    if: github.event_name == 'workflow_dispatch' || github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # The inspector comes from the default branch, so a pull request can't change its own rules.
+      - name: Check out station equipment
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      # A pull request that installs or upgrades the station itself can't be
+      # inspected by equipment that isn't on the default branch yet.
+      - name: Check station equipment
+        id: equipment
+        run: |
+          if [ -f scripts/checks.mjs ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Record checks skipped::The default branch doesn't have scripts/checks.mjs yet. Record checks start working once the station update is merged."
+          fi
+      - uses: actions/setup-node@v5
+        if: steps.equipment.outputs.ready == 'true'
+        with:
+          node-version: 22
+      - name: Gather proposal
+        if: steps.equipment.outputs.ready == 'true'
+        run: node scripts/checks.mjs gather
+      - name: Validate arrival plan
+        if: ${{ !cancelled() && steps.equipment.outputs.ready == 'true' }}
+        run: node scripts/checks.mjs validate plan
+      - name: Validate handover
+        if: ${{ !cancelled() && steps.equipment.outputs.ready == 'true' }}
+        run: node scripts/checks.mjs validate handover
+      - name: Validate arrivals and report
+        if: ${{ !cancelled() && steps.equipment.outputs.ready == 'true' }}
+        run: node scripts/checks.mjs validate records
+      - name: Validate links and paths
+        if: ${{ !cancelled() && steps.equipment.outputs.ready == 'true' }}
+        run: node scripts/checks.mjs validate proposal
+      - name: Post inspection summary
+        if: ${{ !cancelled() && steps.equipment.outputs.ready == 'true' }}
+        run: node scripts/checks.mjs report

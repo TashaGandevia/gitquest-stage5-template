@@ -1,0 +1,55 @@
+name: Record discrepancy
+description: A record that disagrees with its evidence, or could be misread
+title: "Record discrepancy: "
+labels: [record-discrepancy]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say where the problem is, what the record says, what it should make clear, and which evidence it needs to agree with. Someone who wasn't on shift should be able to follow it.
+  - type: input
+    id: file
+    attributes:
+      label: File
+      description: The record file, as a path.
+      placeholder: docking-log/handover/2085-12-08.md
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: The field or line, and the pull request it was proposed in.
+      placeholder: "Instruction field, proposed in PR #12"
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed
+      description: Quote what the record says now.
+      placeholder: Prepare Bay 3 for Aster.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What it should make clear instead, in your own words.
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Evidence
+      description: The notice the record needs to agree with.
+      options:
+        - "Maintenance duty note · 18:15 (docking-log/notices/maintenance-2085-12-08.md)"
+        - "Another notice (explain below)"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Evidence details
+      description: Optional. Anything else a reader should check.

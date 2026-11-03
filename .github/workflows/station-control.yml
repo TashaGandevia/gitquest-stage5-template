@@ -1,0 +1,64 @@
+# Station control moves the shift on. Run it by hand to start the shift, or
+# at any time to resume: it reconciles anything a missed event left undone
+# and links the current task in its run summary.
+#
+# Station commits and pull requests made with GITHUB_TOKEN don't trigger
+# further workflow runs, so there are no loops. The one exception is
+# workflow_dispatch, which station control uses on purpose to run Record
+# checks on its own pull request.
+name: Station control
+
+on:
+  workflow_dispatch:
+  push: # a learner's branch reaching GitHub (M14.1), or a direct push to main to undo
+  pull_request:
+    types: [opened, edited, synchronize, reopened, closed]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, edited, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write # dispatch Record checks for station control's own pull request
+  contents: write # notices, progress and Mika's branch
+  issues: write
+  pull-requests: write
+  statuses: write # Handover readiness
+
+jobs:
+  station:
+    # Shown in a pull request's checks list. It moves the story on; it doesn't
+    # check records, so its name says so.
+    name: Story update (not a check)
+    # Skip events that never matter, so they don't take a place in the queue:
+    # a learner ticking boxes in station control's own issues, deleting a
+    # branch, or commenting on an issue (only pull request comments matter).
+    if: >-
+      github.event.sender.type != 'Bot'
+      && !(github.event_name == 'push' && github.event.deleted)
+      && !(github.event_name == 'issues' && github.event.action == 'edited' && github.event.issue.user.type == 'Bot')
+      && !(github.event_name == 'issue_comment' && !github.event.issue.pull_request)
+    # One station decision at a time: each run reads and rewrites the progress
+    # file. GitHub keeps only one run waiting, so a waiting run can be replaced;
+    # every run therefore also catches up on any merge a replaced run missed.
+    # Job-level, so skipped events never join the queue.
+    concurrency:
+      group: station-control
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      # Always run the station's code from the default branch, never a pull request's.
+      - name: Check out station equipment
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Run station control
+        run: node scripts/station.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
