@@ -535,22 +535,25 @@ export const revertMerged = ({ reverted, login }) => sections(
   mention(login),
 );
 
-// The wrap-up issue: the player's one-time GitQuest code. Not a task: the
+// The wrap-up issue: M16's GitQuest code, with the other two. Not a task: the
 // stage is already complete when it opens, and closing it is optional.
-export const shiftReport = ({ code, redeemUrl }) => ({
-  title: 'Shift report · Your GitQuest code',
+// `codes` is { M14, M15, M16 }. The M14 and M15 codes were posted when those
+// missions ended; they're repeated here so the report holds all three.
+export const shiftReport = ({ codes, url }) => ({
+  title: 'Shift report · Your GitQuest codes',
   labels: ['station'],
   body: sections(
     '# Comms',
-    say('voss', '23:58', 'Shift complete. Take this code back to GitQuest, and the record there will show what you did tonight.'),
-    quote('Your three badges are at the top of this repository\'s README. This code puts the same badges on your GitQuest profile.'),
+    say('voss', '23:58', 'Shift complete. Take M16\'s code back to GitQuest, and the record there will show what you did tonight.'),
+    quote('Your three badges are at the top of this repository\'s README. Each mission\'s code puts the same badge on your GitQuest profile.'),
     '# Your Code',
-    block(code),
-    `**[Redeem it in GitQuest](${redeemUrl})**, or paste the code into GitQuest yourself.`,
-    alert('IMPORTANT', 'The code works **once**. Keep it to yourself until you\'ve used it.'),
+    block(codes.M16),
+    `Enter it on M16's page in **[GitQuest](${url})** to complete the mission there.`,
+    alert('NOTE', 'Each mission has its own code, and each goes on that mission\'s page. If you haven\'t entered the earlier ones yet, here they are:'),
+    `| Mission | Code |\n|---|---|\n${['M14', 'M15', 'M16'].map((m) => `| ${m} | \`${codes[m] ?? 'not written'}\` |`).join('\n')}`,
     '---',
     '# Notes',
     'Nothing else to do in this repository: the stage is already complete. You can close this issue whenever you like.',
-    fold('Where is the code kept?', 'In `.gitquest/completion.json` on `main`, with the repository, the badges and the commits it vouches for. GitQuest reads that file to check the code is yours.'),
+    fold('Where are the codes kept?', 'In `.gitquest/completion.json` on `main`, written only by station control. They aren\'t secret: anyone can read this repository. GitQuest knows the repository is yours from the claim comment you posted in M14, so a code is only any use to you.'),
   ),
 });

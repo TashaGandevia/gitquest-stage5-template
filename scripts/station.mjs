@@ -9,11 +9,12 @@ import { randomInt } from 'node:crypto';
 import { appendFileSync, readFileSync } from 'node:fs';
 import {
   ARRIVALS_PATH,
+  CLAIM_PREFIX,
   CODE_ALPHABET,
   CODE_LENGTH,
   COMPLETION_JSON_PATH,
   COMPLETION_PATH,
-  GITQUEST_REDEEM_URL,
+  GITQUEST_URL,
   README_PATH,
   DOCKING_NOTICES_PATH,
   HANDOVER_PATH,
@@ -335,8 +336,6 @@ async function proposalUpdated(pr) {
   if (reverted) {
     return gh.commentOnce(pr.number, 'gitquest:revert', revertAdvice({ step: progress.step, closes: linkIssue(progress), reverted, login: event.sender?.login }));
   }
-  // Say "don't merge yet" before any result is in.
-  if (event.action === 'opened' && LINK_STEP[progress.step]) await gh.commentOnce(pr.number, 'gitquest:wait', messages.waitForChecks);
   const evidence = collectPullRequest(pr, branch);
   const touches = (path) => evidence.changedPaths.includes(path);
   if (progress.step === STEP.PLAN && touches(PLAN_PATH)) return moveTo('14.3', { pr: pr.number });
@@ -397,23 +396,31 @@ async function pullRequestClosed(pr) {
 }
 
 async function advanceToHandover(pr) {
-  await save(update({ step: STEP.HANDOVER, prs: { plan: pr.number } }), T.holdNotice, 'Maintenance hold on Bay 3', async (read) => {
+  const next = withCode(update({ step: STEP.HANDOVER, prs: { plan: pr.number } }), 'M14');
+  await save(next, T.holdNotice, 'Maintenance hold on Bay 3', async (read) => {
     const notices = await read(MAINTENANCE_NOTICES_PATH);
-    return notices?.includes('## 18:15') ? {} : { [MAINTENANCE_NOTICES_PATH]: appendBlock(notices, HOLD_NOTICE) };
+    return {
+      ...(notices?.includes('## 18:15') ? {} : { [MAINTENANCE_NOTICES_PATH]: appendBlock(notices, HOLD_NOTICE) }),
+      [COMPLETION_JSON_PATH]: completionJson(next),
+    };
   });
   await gh.commentOnce(pr.number, 'gitquest:plan-merged', messages.planMerged);
+  await postCode(pr.number, 'M14');
   await moveTo('15.1', { pr: pr.number });
 }
 
 async function advanceToReview(handoverPr) {
-  await save(update({ step: STEP.REVIEW, prs: { handover: handoverPr }, review: { branch: REVIEW_BRANCH } }), T.released, 'Bay 3 released, Aster docked', async (read) => {
+  const next = withCode(update({ step: STEP.REVIEW, prs: { handover: handoverPr }, review: { branch: REVIEW_BRANCH } }), 'M15');
+  await save(next, T.released, 'Bay 3 released, Aster docked', async (read) => {
     const notices = await read(MAINTENANCE_NOTICES_PATH);
     return {
       ...(notices?.includes('## 22:25') ? {} : { [MAINTENANCE_NOTICES_PATH]: appendBlock(notices, RELEASE_NOTICE) }),
       ...((await read(DOCKING_NOTICES_PATH)) ? {} : { [DOCKING_NOTICES_PATH]: DOCKING_NOTICES }),
+      [COMPLETION_JSON_PATH]: completionJson(next),
     };
   });
   await gh.commentOnce(handoverPr, 'gitquest:handover-merged', messages.handoverMerged);
+  await postCode(handoverPr, 'M15');
   await openReviewPullRequest(handoverPr);
 }
 
@@ -515,6 +522,7 @@ async function applyCorrection(number) {
 }
 
 async function commentCreated(issue, comment) {
+  if (comment.body?.includes(CLAIM_PREFIX)) return console.log('A GitQuest claim comment: not a reply to a task.');
   if (!issue.pull_request || issue.number !== progress.prs.review) return;
   if (progress.step !== STEP.REVIEW || progress.review.corrected) return;
   if (comment.user?.type === 'Bot' || !namesReleaseTime(comment.body)) return;
@@ -543,32 +551,52 @@ async function advanceToFinal(mergedPr, { approved, repairPr }) {
 // ---------------------------------------------------------------- the end
 
 async function completeStage(pr) {
-  // The code is made once and kept: a repeated run reuses it.
-  const code = progress.completion?.code ?? completionCode(randomInt, CODE_ALPHABET, CODE_LENGTH);
-  const redeemUrl = `${GITQUEST_REDEEM_URL}?repo=${encodeURIComponent(repository)}&code=${code}`;
-  const report = await openTask(shiftReport({ code, redeemUrl }));
-  const next = update({ step: STEP.COMPLETE, complete: true, prs: { final: pr.number }, completion: { code, issue: report } });
+  progress = withCode(progress, 'M16');
+  const report = await openTask(shiftReport({ codes: progress.completion.codes, url: GITQUEST_URL }));
+  const next = update({ step: STEP.COMPLETE, complete: true, prs: { final: pr.number }, completion: { ...progress.completion, issue: report } });
   await save(next, T.complete, 'stage complete', async () => ({
     [COMPLETION_PATH]: completionSummary(next, pr),
     [COMPLETION_JSON_PATH]: completionJson(next, pr),
   }));
   await finishSteps(pr.number);
   await gh.commentOnce(progress.steps['16.4'], 'gitquest:stage-complete', messages.stageComplete(report));
-  summaryNote = `The December 8 shift pack is complete. Your GitQuest code is in [#${report}](${issueUrl(report)}).`;
+  summaryNote = `The December 8 shift pack is complete. Your GitQuest code for M16 is in [#${report}](${issueUrl(report)}).`;
 }
 
-// What GitQuest reads to redeem the code. See "GitQuest completion code" in MAINTAINING.md.
+// ---------------------------------------------------------------- GitQuest codes
+// One code per mission. See "GitQuest codes" in MAINTAINING.md.
+
+// Adds `mission`'s code to the state, made once: a repeated or resumed run
+// reuses the one already in progress, so a code never changes once written.
+function withCode(state, mission) {
+  const codes = state.completion?.codes ?? {};
+  if (codes[mission]) return state;
+  const code = completionCode(randomInt, CODE_ALPHABET, CODE_LENGTH);
+  return { ...state, completion: { ...state.completion, codes: { ...codes, [mission]: code } } };
+}
+
+async function postCode(number, mission) {
+  const code = progress.completion.codes[mission];
+  await gh.commentOnce(number, `gitquest:code-${mission}`, messages.missionCode({ mission, code, url: GITQUEST_URL }));
+}
+
+// What GitQuest reads to check a code. Rewritten at T1, T3 and T9, each time
+// with one more code; earlier codes are copied unchanged. GitQuest only
+// accepts it if every commit that touched it is one of these station commits.
 function completionJson(state, finalPr) {
+  const codes = state.completion.codes;
   return `${JSON.stringify({
-    schema: 1,
+    schema: 2,
     stage: 5,
-    code: state.completion.code,
     repository,
-    completedAt: new Date().toISOString(),
-    badges: BADGES.map((b) => b.id),
-    finalMergeCommit: finalPr.merge_commit_sha ?? null,
-    steps: state.steps,
-    pullRequests: state.prs,
+    codes,
+    badges: BADGES.filter((b) => codes[b.mission.toUpperCase()]).map((b) => b.id),
+    ...(finalPr ? {
+      completedAt: new Date().toISOString(),
+      finalMergeCommit: finalPr.merge_commit_sha ?? null,
+      steps: state.steps,
+      pullRequests: state.prs,
+    } : {}),
   }, null, 2)}\n`;
 }
 

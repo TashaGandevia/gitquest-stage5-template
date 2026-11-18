@@ -1,10 +1,12 @@
 // The README's two live sections, rewritten by station control every time it
 // saves progress: the mission badges at the top (Locked until each mission is
-// done), and "Your shift", a table of every task and where the player is.
+// done, with each finished mission's GitQuest code under them), and "Your
+// shift", a table of every task and where the player is.
 // Each lives between HTML comment markers, so the rest of the README is
 // never touched.
 
 import { BADGES, badgePath } from './badges.mjs';
+import { GITQUEST_URL } from './config.mjs';
 import { stepTitle } from './missions.mjs';
 import { MISSION_STEPS, STEP, allSteps, stepOrder } from './story.mjs';
 
@@ -31,7 +33,11 @@ function badgesBlock(progress) {
     const earned = missionDone(progress, badge.mission);
     return `<img src="${badgePath(badge, earned)}" width="300" alt="${badge.title}: ${earned ? 'earned' : 'locked'}">`;
   });
-  return `<p>\n${cards.join('\n')}\n</p>`;
+  const codes = progress.completion?.codes ?? {};
+  const written = BADGES.map((badge) => badge.mission.toUpperCase()).filter((mission) => codes[mission]);
+  if (!written.length) return `<p>\n${cards.join('\n')}\n</p>`;
+  const rows = written.map((mission) => `| ${mission} | \`${codes[mission]}\` |`).join('\n');
+  return `<p>\n${cards.join('\n')}\n</p>\n\n**Your GitQuest codes.** Enter each on that mission's page in [GitQuest](${GITQUEST_URL}).\n\n| Mission | Code |\n|---|---|\n${rows}`;
 }
 
 function progressBlock(progress, completionIssue) {
@@ -49,7 +55,7 @@ function progressBlock(progress, completionIssue) {
     return `| ${i === 0 ? `**${MISSION_NAMES[mission]}**` : ''} | ${stepTitle(key, {})} | ${status} |`;
   }));
   const footer = progress.complete
-    ? `**Shift complete.** Your GitQuest code is in ${completionIssue ? issueLink(completionIssue) : 'the Shift report issue'}.`
+    ? `**Shift complete.** Your GitQuest code for M16 is in ${completionIssue ? issueLink(completionIssue) : 'the Shift report issue'}, and at the top of this README.`
     : 'Updated by Station control each time a task is done.';
   return `## Your shift\n\n| Mission | Task | Status |\n|---|---|---|\n${rows.join('\n')}\n\n${footer}`;
 }

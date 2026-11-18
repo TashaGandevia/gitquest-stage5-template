@@ -14,7 +14,7 @@ import { collectPullRequest } from './lib/evidence.mjs';
 import { createClient } from './lib/github.mjs';
 import { MARKERS, publishInspection } from './lib/inspection.mjs';
 import * as messages from './lib/messages.mjs';
-import { STEP, evaluatePullRequest, revertOf, failing, initialProgress, logFindings } from './lib/story.mjs';
+import { LINK_STEP, STEP, evaluatePullRequest, revertOf, failing, initialProgress, logFindings } from './lib/story.mjs';
 
 const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
 const eventName = process.env.GITHUB_EVENT_NAME;
@@ -42,6 +42,20 @@ async function gather() {
   console.log(`Changed: ${evidence.changedPaths.join(', ') || 'nothing'}`);
   console.log(evaluation ? `Inspecting against step ${progress.step}.` : 'No task takes this pull request right now.');
   writeFileSync(statePath, JSON.stringify({ progress, evidence, evaluation }));
+
+  // Say "don't merge yet" before any result is in. This job posts the result
+  // too, so the note always comes first. Station control used to post it, but
+  // its runs queue one at a time, and on a busy pull request the note arrived
+  // after "Passed" (seen on the November 9 playthrough).
+  const waits = !dispatched && event.action === 'opened' && LINK_STEP[progress.step]
+    && pr.number !== progress.prs?.review && !revertOf(evidence);
+  if (waits) {
+    try {
+      await gh.commentOnce(pr.number, 'gitquest:wait', messages.waitForChecks);
+    } catch (error) {
+      console.log(`Couldn't post the wait note: ${error.message}`); // the inspection still runs
+    }
+  }
 }
 
 function validate(partId) {

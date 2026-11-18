@@ -23,12 +23,19 @@ Not started yet. Open **Actions → Station control → Run workflow** to begin.
 
 ## Quick start
 
-1. **Make your copy:** **Use this template → Create a new repository**, set to **Public**.
+Playing from GitQuest? Its **M14** page walks you through every step below,
+with help for Windows, macOS and Linux. Tick them off there.
+
+1. **Make your copy:** **Use this template → Create a new repository**, set to
+   **Public**. GitQuest can only read a public repository.
 2. **Allow pull requests from Actions:** in your copy, **Settings → Actions → General**,
    choose **Read and write permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and save.
-3. **Get Git ready** on your computer. [How?](#setting-up-git)
+   A new copy has neither, and M16 needs both.
+3. **Get Git ready** on your computer, with an SSH key for this repository. [How?](#setting-up-git)
 4. **Clone your copy** (not the template), and open the folder in your editor.
-5. **Start the shift:** **Actions → Station control → Run workflow**. your first task, **M14.1**, appears under **Issues**.
+5. **Start the shift:** **Actions → Station control → Run workflow**. Your first task, **M14.1**, appears under **Issues**.
+6. **Link it to GitQuest:** GitQuest gives you a claim token to comment on any
+   issue here. [More](#linking-this-repository-to-gitquest)
 
 That's all you need. Everything else is explained as you go, in the story.
 
@@ -46,8 +53,9 @@ That's all you need. Everything else is explained as you go, in the story.
 
 ## Setting up Git
 
-You need two things: a **name and email** for your commits, and a way to
-**sign in** to GitHub when you push. They're separate.
+GitQuest's M14 page has these steps with help for each system. In short, you
+need two things: a **name and email** for your commits, and a way to **sign
+in** to GitHub when you push. They're separate.
 
 ```bash
 git config --global user.name "Your Name"
@@ -57,34 +65,25 @@ git config --global user.name "Your Name"
 git config --global user.email "you@example.com"
 ```
 
-<details>
-<summary><strong>Signing in: Windows</strong></summary>
+To sign in, make an SSH key just for this shift and add its `.pub` half to
+GitHub (**Settings → SSH and GPG keys → New SSH key**):
 
-Install [Git for Windows](https://git-scm.com/download/win) with the default
-options. The first time you push, a browser window asks you to sign in.
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/gitquest_ed25519
+```
 
-</details>
+The clone below tells this one folder to use that key, so nothing else on your
+computer changes and no password or token is saved.
 
-<details>
-<summary><strong>Signing in: macOS or Linux</strong></summary>
-
-Install [GitHub CLI](https://cli.github.com/), then run `gh auth login` and
-choose the browser option.
-
-</details>
-
-Never paste a password or token into GitQuest, an issue, or a file here.
-
-<img width="1340" height="382" alt="Signing in from the terminal" src="https://github.com/user-attachments/assets/5099568d-6bbc-4d98-9778-566b67037481" />
-*Signing in through the browser from a terminal*
+Never paste a password, token or private key into GitQuest, an issue, or a file here.
 
 <details>
 <summary><strong>Cloning, and checking you cloned the right one</strong></summary>
 
-On **your** repository's page, choose **Code**, copy the URL, then:
+On **your** repository's page, choose **Code → SSH**, copy the address, then:
 
 ```bash
-git clone https://github.com/YOUR-NAME/YOUR-REPOSITORY.git
+git clone -c core.sshCommand="ssh -i ~/.ssh/gitquest_ed25519 -o IdentitiesOnly=yes" git@github.com:YOUR-NAME/YOUR-REPOSITORY.git
 ```
 
 Inside the new folder, `git remote -v` should show **your** repository. If it
@@ -128,7 +127,24 @@ names; `.github/`, `scripts/` and `.gitquest/` are station equipment.
 
 </details>
 
+## Linking this repository to GitQuest
+
+On M14's page, GitQuest asks for this repository's name and gives you a claim
+token like `gitquest-claim-…`. Comment it on **any issue** here, from your own
+account, then check it in GitQuest. That's how GitQuest knows the repository
+is yours. Station control ignores the comment: it isn't a reply to a task.
+
+## Your GitQuest codes
+
+Each mission ends with a code from Station control: M14's and M15's on the
+pull request that finished them, M16's in the **Shift report** issue. They're
+also listed under the badges at the top of this README. Enter each on that
+mission's page in GitQuest to complete it there.
+
+The codes aren't secret: anyone can read this repository. They only count for
+the GitQuest player who linked it.
+
 ## When you're done
 
-Station control posts **Stage complete**. Go back to GitQuest with this
-repository's URL. To start over, delete this repository and make a new copy.
+Station control posts **Stage complete**. To start over, delete this
+repository and make a new copy (and link the new one in GitQuest).

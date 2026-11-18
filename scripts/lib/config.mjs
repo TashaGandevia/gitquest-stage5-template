@@ -10,15 +10,29 @@ export const COMPLETION_PATH = '.gitquest/completion.md';
 export const COMPLETION_JSON_PATH = '.gitquest/completion.json';
 export const README_PATH = 'README.md';
 
-// Where the player redeems their completion code. Station control adds
-// ?repo=<owner/name>&code=<code> to the link. Change it to GitQuest's real page.
-// TODO This needs a link and to be set up within GitQuest
-export const GITQUEST_REDEEM_URL = 'https://gitquest.example/redeem';
+// GitQuest itself. Each mission's code goes on that mission's page there, so
+// the link carries no code or repository.
+// TODO Set GitQuest's real address once it's hosted.
+export const GITQUEST_URL = 'https://gitquest.example';
 
-// Completion codes use letters and digits that can't be confused when copied
-// by eye: no 0/O or 1/I/L.
+// One code per mission, written into COMPLETION_JSON_PATH by the station
+// commit that ends it. GitQuest reads the commit by this marker, so the
+// pairs here must match `codeMarkers` in GitQuest's stage5Redeem.ts.
+export const MISSION_CODES = [
+  { mission: 'M14', marker: 1 }, // T1, after the plan merges
+  { mission: 'M15', marker: 3 }, // T3, after the handover merges
+  { mission: 'M16', marker: 9 }, // T9, stage complete
+];
+
+// Codes use letters and digits that can't be confused when copied by eye:
+// no 0/O or 1/I/L.
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 12;
+
+// GitQuest asks the learner to comment a claim token (`gitquest-claim-…`) on
+// any issue, to prove the repository is theirs. Station control ignores those
+// comments: they aren't replies to a task.
+export const CLAIM_PREFIX = 'gitquest-claim-';
 
 export const ARRIVALS_PATH = 'docking-log/arrivals.md';
 export const PLAN_PATH = 'docking-log/plans/aster.md';

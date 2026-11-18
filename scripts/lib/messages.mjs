@@ -260,10 +260,18 @@ export const nextStep = (mission, title) => say('station', 'next', `**Next step:
 
 export const vossFinalReady = say('voss', '23:30', 'The arrival is recorded, the release time agrees with Maintenance, and the handover links back to the correction. Put it in.');
 
+// Posted on the pull request that ends M14 or M15, with that mission's code.
+// M16's code is in the Shift report instead.
+export const missionCode = ({ mission, code, url }) => sections(
+  say('station', 'code', `**${mission} complete.** Your GitQuest code for ${mission}:`),
+  block(code),
+  `Enter it on ${mission}'s page in **[GitQuest](${url})** to complete the mission there. It's also at the top of this repository's README.`,
+);
+
 export const stageComplete = (report) => sections(
   say('mika', '23:55', "Relief's here. They asked about Bay 3. I sent them the handover and they found the rest from there.\n\nWhich means, for once, I can actually leave."),
   say('voss', '23:56', "When you started, we couldn't say when a line had disappeared. Tonight, someone can follow the request, the correction, the review, and the record it became.\n\nThat's a handover."),
-  say('station', '23:59', `**Stage complete.** The December 8 shift pack is complete. Your three badges are at the top of the README, and your GitQuest code is in #${report}. Your issues, reviews, and workflow runs stay here to revisit.`),
+  say('station', '23:59', `**Stage complete.** The December 8 shift pack is complete. Your three badges are at the top of the README, and your GitQuest code for M16 is in #${report}. Your issues, reviews, and workflow runs stay here to revisit.`),
   fold('Before you go', `${block('git switch main\ngit pull', 'bash')}
 
 Then delete merged branches with \`git branch -d <name>\`.`),

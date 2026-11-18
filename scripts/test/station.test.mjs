@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ARRIVALS_PATH, HANDOVER_PATH, MAINTENANCE_NOTICES_PATH, PLAN_PATH, PROGRESS_PATH, REPORT_PATH, REVIEW_BRANCH, TEMPLATE_REPOSITORY } from '../lib/config.mjs';
+import { ARRIVALS_PATH, HANDOVER_PATH, MAINTENANCE_NOTICES_PATH, MISSION_CODES, PLAN_PATH, PROGRESS_PATH, REPORT_PATH, REVIEW_BRANCH, TEMPLATE_REPOSITORY } from '../lib/config.mjs';
 import { ROUGH_HANDOVER } from '../lib/content.mjs';
 import { initialProgress } from '../lib/story.mjs';
 import { startFakeGitHub } from './fake-github.mjs';
@@ -202,13 +202,15 @@ test('M14.2 → M14.3: opening the pull request moves on; Record checks passes b
   assert.match(merge14.body, /\*\*Nothing to do here\*\*/);
   assert.match(merge14.body, /Delete branch[\s\S]*safe/);
   assert.match(comments(planPr.number).at(-1), /Next step:\*\* M14\.3 · Check and merge/);
-  const wait = comments(planPr.number).find((c) => c.includes('gitquest:wait'));
-  assert.match(wait, /> \[!WARNING\]\n> \*\*Don't merge yet\.\*\*[\s\S]*not a check of your record/, 'a wait note arrives before any result');
+  assert.ok(!comments(planPr.number).some((c) => c.includes('gitquest:wait')), 'station control leaves the wait note to Record checks');
 
   const steps = await recordChecks('pull_request', pullRequestEvent('opened', planPr));
   assert.equal(steps.plan.code, 0, steps.plan.output);
   assert.equal(steps.proposal.code, 0, steps.proposal.output);
-  assert.ok(comments(planPr.number).some((c) => /\*\*Passed\.\*\*/.test(c)));
+  const wait = comments(planPr.number).findIndex((c) => c.includes('gitquest:wait'));
+  assert.match(comments(planPr.number)[wait], /> \[!WARNING\]\n> \*\*Don't merge yet\.\*\*[\s\S]*not a check of your record/);
+  const result = comments(planPr.number).findIndex((c) => /\*\*Passed\.\*\*/.test(c));
+  assert.ok(wait >= 0 && result > wait, 'the wait note comes before the result');
   assert.ok(comments(planPr.number).some((c) => /Ready to merge/.test(c)));
 });
 
@@ -223,6 +225,18 @@ test('M14 → M15: merging is confirmed by Voss and opens M15.1 with the hold no
   assert.match(confirmedOn('14.3'), /color\{#D99D5B\}\{\\Large\\textbf\{Voss\}\}[\s\S]*That finishes M14[\s\S]*Your next task: #\d+ · \*\*M15\.1/);
   const notice = api.state.stationCommits.find((c) => c.message.startsWith('[station] T1: '));
   assert.match(notice.files[MAINTENANCE_NOTICES_PATH], /## 18:15 · Maintenance duty note/);
+
+  // M14's GitQuest code: written by T1, posted on the merged pull request, shown in the README.
+  const json = JSON.parse(notice.files['.gitquest/completion.json']);
+  assert.equal(json.schema, 2);
+  assert.equal(json.repository, 'learner/docking-log');
+  assert.deepEqual(Object.keys(json.codes), ['M14']);
+  assert.match(json.codes.M14, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$/, '12 characters, no look-alikes');
+  assert.deepEqual(json.badges, ['m14-on-the-other-end']);
+  const codeComment = comments(planPr.number).find((c) => c.includes('gitquest:code-M14'));
+  assert.ok(codeComment.includes(json.codes.M14) && /M14 complete[\s\S]*M14's page/.test(codeComment));
+  assert.ok(readme.includes(`| M14 | \`${json.codes.M14}\` |`), 'the code is under the badges');
+  assert.equal(progress().completion.codes.M14, json.codes.M14);
   assert.equal(progress().step, 2);
   assert.match(stepIssueOf('15.1').body, /textbf\{Maintenance\}[\s\S]*guide-light test is incomplete/);
   assert.match(stepIssueOf('15.1').body, /- \[ \] \*\*Wait for Record checks\. Don't merge\*\*/);
@@ -311,6 +325,10 @@ test('M15 → M16: merging opens Mika\'s pull request and M16.1', async () => {
   reviewPr = api.state.pulls.find((p) => p.head.ref === REVIEW_BRANCH);
   assert.match(api.state.snapshots[api.state.branches[REVIEW_BRANCH]][REPORT_PATH], /Maintenance released Bay 3 at 22:40\./);
   assert.match(confirmedOn('15.4'), /That finishes M15/);
+  const codesAt = (marker) => JSON.parse(api.state.stationCommits.find((c) => c.message.startsWith(`[station] ${marker}: `)).files['.gitquest/completion.json']).codes;
+  assert.equal(codesAt('T3').M14, codesAt('T1').M14, "M14's code never changes");
+  assert.deepEqual(Object.keys(codesAt('T3')), ['M14', 'M15']);
+  assert.ok(comments(handoverPr.number).some((c) => c.includes('gitquest:code-M15') && c.includes(codesAt('T3').M15)));
   assert.equal(progress().chunk, '16.1');
   assert.match(stepIssueOf('16.1').body, new RegExp(`pull request #${reviewPr.number}`));
   assert.match(comments(handoverPr.number).at(-1), /Next step:\*\* M16\.1/);
@@ -376,21 +394,33 @@ None.
   assert.match(confirmedOn('16.4'), /That finishes M16/);
   assert.match(comments(step('16.4')).at(-1), /Relief's here[\s\S]*Stage complete/);
 
-  // The one-time GitQuest code: in completion.json, in the Shift report issue and the README.
+  // M16's GitQuest code: in completion.json beside the other two, in the Shift report issue and the README.
   const t9 = api.state.stationCommits.find((c) => c.message.startsWith('[station] T9: '));
   const json = JSON.parse(t9.files['.gitquest/completion.json']);
-  assert.match(json.code, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$/, '12 characters, no look-alikes');
+  const t3 = JSON.parse(api.state.stationCommits.find((c) => c.message.startsWith('[station] T3: ')).files['.gitquest/completion.json']);
+  assert.equal(json.schema, 2);
+  assert.deepEqual(Object.keys(json.codes), ['M14', 'M15', 'M16']);
+  assert.deepEqual({ M14: json.codes.M14, M15: json.codes.M15 }, t3.codes, 'earlier codes never change');
+  assert.match(json.codes.M16, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$/);
   assert.equal(json.repository, 'learner/docking-log');
   assert.deepEqual(json.badges, ['m14-on-the-other-end', 'm15-read-the-result', 'm16-second-pair-of-eyes']);
-  const report = api.state.issues.find((i) => i.title === 'Shift report · Your GitQuest code');
-  assert.match(report.body, new RegExp(`\`\`\`text\\n${json.code}\\n\`\`\``));
-  assert.match(report.body, new RegExp(`redeem\\?repo=learner%2Fdocking-log&code=${json.code}`));
-  assert.match(report.body, /works \*\*once\*\*/);
-  assert.match(comments(step('16.4')).at(-1), new RegExp(`your GitQuest code is in #${report.number}`));
+  const report = api.state.issues.find((i) => i.title === 'Shift report · Your GitQuest codes');
+  assert.ok(report.body.includes(`\`\`\`text\n${json.codes.M16}\n\`\`\``));
   const readme = t9.files['README.md'];
-  for (const id of json.badges) assert.match(readme, new RegExp(`${id}-earned\\.svg`));
-  assert.match(readme, new RegExp(`Shift complete\\.\\*\\* Your GitQuest code is in \\[#${report.number}\\]`));
-  assert.equal(progress().completion.code, json.code);
+  for (const mission of ['M14', 'M15', 'M16']) {
+    assert.ok(report.body.includes(`| ${mission} | \`${json.codes[mission]}\` |`), `${mission} in the Shift report`);
+    assert.ok(readme.includes(`| ${mission} | \`${json.codes[mission]}\` |`), `${mission} in the README`);
+  }
+  assert.doesNotMatch(report.body, /once|redeem/i, 'codes per mission: no one-time or redeem wording');
+  assert.ok(comments(step('16.4')).at(-1).includes(`your GitQuest code for M16 is in #${report.number}`));
+  for (const id of json.badges) assert.ok(readme.includes(`${id}-earned.svg`));
+  assert.ok(readme.includes(`**Shift complete.** Your GitQuest code for M16 is in [#${report.number}]`));
+  assert.deepEqual(progress().completion.codes, json.codes);
+  // GitQuest finds each code's commit by its marker, so MISSION_CODES must match where they're written.
+  for (const { mission, marker } of MISSION_CODES) {
+    const written = api.state.stationCommits.filter((c) => c.files['.gitquest/completion.json'] && JSON.parse(c.files['.gitquest/completion.json']).codes[mission]);
+    assert.ok(written[0].message.startsWith(`[station] T${marker}: `), `${mission}'s code is first written at T${marker}`);
+  }
   const done = api.state.stationCommits.find((c) => c.message.startsWith('[station] T9: '));
   assert.match(done.files['.gitquest/completion.md'], /M14\.1 task \| \[#1\]/);
 });

@@ -114,51 +114,65 @@ the learner's `README.md` (between `<!-- gitquest:badges:start/end -->` and
 - **Your shift:** every task with Done / **Current** / Up next, linked to its
   issue.
 
-## GitQuest completion code
+## GitQuest codes
 
-When the stage completes, station control:
+One code per mission (changed November 9 from one code at the end). Each is
+**12 characters** from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no 0/O or 1/I/L),
+made with `crypto.randomInt` when the mission ends and kept in
+`progress.completion.codes`; repeated runs reuse it, so a code never changes.
 
-1. Makes a **12-character code** from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no
-   0/O or 1/I/L), with `crypto.randomInt`. It is made once and kept in
-   `progress.completion.code`; repeated runs reuse it.
-2. Writes `.gitquest/completion.json` on `main` (in the `[station] T9` commit):
+| Mission | Written by | Shown in |
+|---|---|---|
+| M14 | `[station] T1` (plan merged) | A comment on the plan pull request, and the README |
+| M15 | `[station] T3` (handover merged) | A comment on the handover pull request, and the README |
+| M16 | `[station] T9` (stage complete) | The **Shift report · Your GitQuest codes** issue (with all three), and the README |
 
-   ```json
-   {
-     "schema": 1,
-     "stage": 5,
-     "code": "K7M2PX9QW4TR",
-     "repository": "owner/name",
-     "completedAt": "2026-11-03T23:59:00.000Z",
-     "badges": ["m14-on-the-other-end", "m15-read-the-result", "m16-second-pair-of-eyes"],
-     "finalMergeCommit": "…",
-     "steps": { "14.1": 1, "…": "…" },
-     "pullRequests": { "plan": 3, "…": "…" }
-   }
-   ```
+Each of those commits rewrites `.gitquest/completion.json` on `main` with one
+more code, copying the earlier ones unchanged:
 
-3. Opens a **Shift report · Your GitQuest code** issue with the code and a
-   link to `GITQUEST_REDEEM_URL?repo=<owner/name>&code=<code>` (set the real
-   URL in `scripts/lib/config.mjs`). It isn't a task: the stage is already
-   complete, and closing it is optional.
+```json
+{
+  "schema": 2,
+  "stage": 5,
+  "repository": "owner/name",
+  "codes": { "M14": "K7M2PX9QW4TR", "M15": "…", "M16": "…" },
+  "badges": ["m14-on-the-other-end", "m15-read-the-result", "m16-second-pair-of-eyes"],
+  "completedAt": "2026-11-03T23:59:00.000Z",
+  "finalMergeCommit": "…",
+  "steps": { "14.1": 1, "…": "…" },
+  "pullRequests": { "plan": 3, "…": "…" }
+}
+```
 
-### What GitQuest needs to do to redeem it
+`badges` lists the missions with a code so far. `completedAt`,
+`finalMergeCommit`, `steps` and `pullRequests` only appear from T9. GitQuest
+reads `schema`, `stage`, `repository` and `codes`, and ignores the rest.
 
-| # | Requirement |
+The links go to `GITQUEST_URL` in `scripts/lib/config.mjs` (GitQuest itself,
+no query string: the code goes on the mission's page). Set the real address
+before publishing. The Shift report isn't a task: closing it is optional.
+
+### What GitQuest checks
+
+GitQuest's own docs have the details (`docs/missions/stage5/PLANNING.md` and
+`stage5Redeem.ts`). In short, for a code entered on a mission's page:
+
+| # | Check |
 |---|---|
-| 1 | Accept the **code** (12 characters; trim spaces, ignore case and dashes) and the **repository** (`owner/name`, from the link or typed in) |
-| 2 | Read `.gitquest/completion.json` from the repository's default branch (public: `GET /repos/{repo}/contents/.gitquest/completion.json`, or raw.githubusercontent.com). Reject if missing |
-| 3 | Check `schema == 1`, `stage == 5`, `code` matches, `repository` matches the repository asked about (ignoring case) |
-| 4 | Check the repository was made from the template: `GET /repos/{repo}` → `template_repository.full_name` is the published template |
-| 5 | Check the history: the latest commit touching `completion.json` is a `[station] T9:` commit by `github-actions[bot]`, and `[station] T0`–`T3` exist before it |
-| 6 | **One-time use:** store each redemption (code, repository, GitQuest user, time). Reject a code that has been redeemed, and a repository already redeemed by another user |
-| 7 | Award the badges listed in `badges` (ids match `scripts/lib/badges.mjs`), plus any stage badge (e.g. Next Shift Ready) |
-| 8 | Show a clear reason on rejection: no file, wrong code, already used, not from the template |
+| 1 | Once, at M14: the repository was made from this template, and its **owner** commented GitQuest's claim token (`gitquest-claim-…`) on any issue. That links the repository to the player |
+| 2 | `completion.json` is schema 2, names this repository, and holds this mission's code |
+| 3 | Every commit that touched `completion.json` is a verified `github-actions[bot]` commit, the one marked for this mission (`T1`, `T3`, `T9`) is among them, and `[station] T0` is older |
+| 4 | Codes go in mission order: M15's needs M14's first |
 
-**Limits.** The learner owns their repository, including its workflows, so a
-determined learner could write a matching `completion.json` themselves. The
-checks above (template origin, bot-authored station history, one-time use)
-make that a lot of work, not impossible. Treat it as progress evidence.
+Keep the markers in `MISSION_CODES` (`scripts/lib/config.mjs`) in step with
+`codeMarkers` in GitQuest, and never let anything but station control write
+`completion.json`: a learner's own commit to it makes every code fail.
+
+**Limits.** The codes are public in the repository, so a code alone proves
+nothing about who's entering it; the claim comment does that. The learner owns
+their repository, including its workflows, so a determined learner could still
+make station-looking commits themselves. The checks make that a lot of work,
+not impossible. Treat it as progress evidence.
 
 ## Two results on the handover PR
 

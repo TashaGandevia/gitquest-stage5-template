@@ -34,12 +34,14 @@ jobs:
     name: Story update (not a check)
     # Skip events that never matter, so they don't take a place in the queue:
     # a learner ticking boxes in station control's own issues, deleting a
-    # branch, or commenting on an issue (only pull request comments matter).
+    # branch, commenting on an issue (only pull request comments matter), or
+    # posting GitQuest's claim token.
     if: >-
       github.event.sender.type != 'Bot'
       && !(github.event_name == 'push' && github.event.deleted)
       && !(github.event_name == 'issues' && github.event.action == 'edited' && github.event.issue.user.type == 'Bot')
       && !(github.event_name == 'issue_comment' && !github.event.issue.pull_request)
+      && !(github.event_name == 'issue_comment' && contains(github.event.comment.body, 'gitquest-claim-'))
     # One station decision at a time: each run reads and rewrites the progress
     # file. GitHub keeps only one run waiting, so a waiting run can be replaced;
     # every run therefore also catches up on any merge a replaced run missed.
