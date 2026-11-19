@@ -76,7 +76,7 @@ Your commit is safe on \`rescued-work\`. Commit or save anything unfinished **be
 
 const runWorkflowExplainer = fold('How did this issue get here?', `You pressed **Run workflow** in the **Actions** tab. That started **Station control**, a GitHub Action: a small robot that runs when something happens in the repository. This one opened this issue for you, and it will open each next task as you go.
 
-${shot('m14-1-actions-run-workflow', 'The Actions tab, with Station control selected and the Run workflow button highlighted')}`);
+${shot('m14-1-actions-run-workflow', 'The Actions tab, with Station control selected and the Run workflow menu open')}`);
 
 // ---------------------------------------------------------------- steps
 // `ctx`: { self, link, handoverPr, discrepancy, reviewPr }
@@ -121,9 +121,9 @@ I need the plan updated with the new time. Can you take it? Put your name on it 
       intro: `This is an **issue**: a request that lives in the repository, with its own number (this one is **#${self}**) and its own conversation.`,
       tasks: [
         ['Assign yourself', 'In the right-hand column, find **Assignees** and choose **assign yourself**. This tells others that you are working on this task. It helps to prevent overlap and wasted work.',
-          shot('m14-1-issue-sidebar-assignees-open', 'The issue sidebar, with Assignees open and "assign yourself" highlighted')],
-        ['Tick boxes as you go', 'These checkboxes are a **task list**. Click a box to tick it. The issues list shows how many are done, like "2 of 6".',
-          shot('m14-1-issue-issues-list-task', 'An issue in the Issues list, showing its task-list progress')],
+          shot('m14-1-issue-sidebar-assignees-open', 'The issue sidebar, with the "Assign yourself" link under Assignees')],
+        ['Tick boxes as you go', 'These checkboxes are a **task list**. Click a box to tick it as you finish each task, so you can see at a glance what\'s left.',
+          shot('m14-1-task-list-ticked', 'Ticked task-list boxes in an issue')],
         ['Make a branch', `In a terminal, inside your cloned folder:
 
 ${bash('git switch -c aster-plan')}
@@ -194,7 +194,7 @@ ${shot('m14-1-close-issue-button-under', 'The Close issue button under the comme
       intro: 'Two things read your pull request: **Record checks** (automatic) and Mika.',
       tasks: [
         ['Watch Record checks', 'At the bottom of your pull request, **Record checks** runs by itself and turns green. **Nothing to do here**: it passes on its own this time. It is an automatic inspector at the door: every time your draft changes, it checks the format before anyone files it. It\'s another GitHub Action, like Station control.',
-          shot('m14-3-checks-box-at-bottom', 'The checks box at the bottom of a pull request, with Record checks passed')],
+          shot('m14-3-checks-box-at-bottom', 'The checks box at the bottom of a pull request, with all checks passed and the Merge pull request button below')],
         ['Read Mika\'s reply', 'She replies on the pull request once the checks pass.'],
         ['Merge', 'Choose **Merge pull request → Confirm merge**. This files your draft in the official log: now `main` has your change.',
           shot('m14-3-merge-pull-request-button', 'The Merge pull request button, then Confirm merge')],
