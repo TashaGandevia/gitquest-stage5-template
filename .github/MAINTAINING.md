@@ -149,8 +149,9 @@ more code, copying the earlier ones unchanged:
 reads `schema`, `stage`, `repository` and `codes`, and ignores the rest.
 
 The links go to `GITQUEST_URL` in `scripts/lib/config.mjs` (GitQuest itself,
-no query string: the code goes on the mission's page). Set the real address
-before publishing. The Shift report isn't a task: closing it is optional.
+no query string: the code goes on the mission's page), set to
+`https://gitquest-web.onrender.com` on November 18. If GitQuest moves, change it
+there. The Shift report isn't a task: closing it is optional.
 
 ### What GitQuest checks
 

@@ -6,7 +6,7 @@
 // run finds what already exists instead of creating it twice.
 
 import { randomInt } from 'node:crypto';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import {
   ARRIVALS_PATH,
   CLAIM_PREFIX,
@@ -35,7 +35,7 @@ import { createClient } from './lib/github.mjs';
 import { publishInspection } from './lib/inspection.mjs';
 import * as messages from './lib/messages.mjs';
 import { BADGES } from './lib/badges.mjs';
-import { confirmation, directPushUndone, mergedTooEarly, revertAdvice, revertMerged, shiftReport, stepIssue, stepTitle } from './lib/missions.mjs';
+import { confirmation, directPushUndone, mergedTooEarly, revertAdvice, revertMerged, shiftReport, stepIssue, stepTitle, withoutMissingScreenshots } from './lib/missions.mjs';
 import { renderReadme } from './lib/readme.mjs';
 import { appendBlock, appendLine, parseReport } from './lib/records.mjs';
 import {
@@ -139,8 +139,12 @@ async function main() {
 // Screenshots load from .github/screenshots in this repository (the player's
 // own copy, which is public), so images added to the template travel with it.
 const screenshotsUrl = () => `https://raw.githubusercontent.com/${repository}/${branch}/.github/screenshots`;
+// Station control runs in a checkout of this repository, so a screenshot is there or it isn't.
+const screenshotExists = (name) => existsSync(`.github/screenshots/${name}.png`);
 
-async function openTask(task) {
+async function openTask(step) {
+  // Missing screenshots come out before the issue exists, so nobody sees a broken image.
+  const task = { ...step, body: withoutMissingScreenshots(step.body, screenshotExists) };
   const number = await gh.ensureIssue(task);
   if (task.body.includes(messages.ISSUE_NUMBER) || task.body.includes(messages.SCREENSHOTS)) {
     const body = task.body.replaceAll(messages.ISSUE_NUMBER, String(number)).replaceAll(messages.SCREENSHOTS, screenshotsUrl());

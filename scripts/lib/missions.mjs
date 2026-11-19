@@ -46,6 +46,22 @@ const shot = (name, description) => {
   return `[SCREENSHOT]: ${description}\n\n![${description.replace(/[[\]]/g, '')}](${SCREENSHOTS}/${name}.png)`;
 };
 
+// Takes out every screenshot whose image isn't in the copy yet: its caption and its image, inside
+// a quote box or not. Without this, every task issue showed a broken image until the PNGs exist
+// (run #1, November 18). `exists(name)` says whether .github/screenshots/<name>.png is there.
+const SCREENSHOT_BLOCK = /^(> ?)?\[SCREENSHOT\]: [^\n]*\n(?:>?[ \t]*\n)*(?:> ?)?!\[[^\]]*\]\([^)\s]*\/([\w.-]+)\.png\)[ \t]*\n?/gm;
+export function withoutMissingScreenshots(body, exists) {
+  let removed = false;
+  const kept = body.replace(SCREENSHOT_BLOCK, (block, _quote, name) => {
+    if (exists(name)) return block;
+    removed = true;
+    return '';
+  });
+  // Only tidy up when something came out, so an issue with every image is untouched: no run of
+  // blank lines, and no run of empty quote lines inside a box.
+  return removed ? kept.replace(/\n{3,}/g, '\n\n').replace(/(\n>[ \t]*){2,}\n/g, '\n>\n') : kept;
+}
+
 
 
 // When `git pull` refuses because local main has a commit GitHub doesn't.
@@ -288,7 +304,10 @@ ${block('Instruction: Wait for Maintenance to release Bay 3 before preparing it 
           shot('m15-4-checks-box-both-record', 'The checks box with both Record checks and Handover readiness passed')],
         closeTask('Voss'),
       ],
-      notes: [fold('Why the description, not a reply?', 'Only the **description** can close issues on merge. Writing an issue number in a reply links it, but closes nothing.')],
+      notes: [
+        fold('Why the description, not a reply?', 'Only the **description** can close issues on merge. Writing an issue number in a reply links it, but closes nothing.'),
+        fold('A Record checks run says Cancelled?', 'Pushing and editing the description close together starts Record checks twice, and the newer run replaces the older one. Only the newest run counts: wait for that one to be green.'),
+      ],
     }),
   }),
 

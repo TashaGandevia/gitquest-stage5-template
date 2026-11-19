@@ -27,8 +27,11 @@ const GIT_ENV = {
   GIT_COMMITTER_EMAIL: 'station@example.com',
 };
 const starter = (path) => readFileSync(join(ROOT, path), 'utf8');
-const STARTER_FILES = Object.fromEntries([ARRIVALS_PATH, PLAN_PATH, HANDOVER_PATH, MAINTENANCE_NOTICES_PATH, 'README.md']
-  .map((path) => [path, starter(path)]));
+const STARTER_FILES = {
+  ...Object.fromEntries([ARRIVALS_PATH, PLAN_PATH, HANDOVER_PATH, MAINTENANCE_NOTICES_PATH, 'README.md'].map((path) => [path, starter(path)])),
+  // One screenshot that exists, so the tests see one kept and the rest left out.
+  '.github/screenshots/m14-1-issue-sidebar-assignees-open.png': 'not really a png',
+};
 
 let root, api, origin, learner, station;
 const git = (cwd, args, env = {}) => execFileSync('git', args, { cwd, env: { ...GIT_ENV, ...env }, encoding: 'utf8' }).trim();
@@ -160,6 +163,9 @@ test('Run workflow opens M14.1, and a second run adds nothing', async () => {
   assert.match(issue.body, /\*\*task list\*\*/);
   assert.match(issue.body, /\[SCREENSHOT\]: The issue sidebar[^\n]*\n\n!\[[^\]]*\]\(https:\/\/raw\.githubusercontent\.com\/learner\/docking-log\/main\/\.github\/screenshots\/m14-1-issue-sidebar-assignees-open\.png\)/, 'the image loads from the player\'s own copy');
   assert.doesNotMatch(issue.body, /\{\{screenshots\}\}|\{\{issue\}\}/);
+  // A screenshot with no image in the copy comes out entirely, caption and all.
+  assert.doesNotMatch(issue.body, /m14-1-close-issue-button-under|Close issue button under the comment box/, 'a missing screenshot is left out');
+  assert.doesNotMatch(issue.body, /\n{3,}/, 'no run of blank lines where it was');
   assert.match(issue.body, /git switch -c aster-plan[\s\S]*git push -u origin aster-plan[\s\S]*has no upstream branch/, 'M14.1 is real work: branch, commit, push -u');
   assert.match(issue.body, /How did this issue get here\?[\s\S]*Run workflow/);
   assert.equal(progress().chunk, '14.1');

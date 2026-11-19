@@ -11,9 +11,9 @@ export const COMPLETION_JSON_PATH = '.gitquest/completion.json';
 export const README_PATH = 'README.md';
 
 // GitQuest itself. Each mission's code goes on that mission's page there, so
-// the link carries no code or repository.
-// TODO Set GitQuest's real address once it's hosted.
-export const GITQUEST_URL = 'https://gitquest.example';
+// the link carries no code or repository. The Render static site named
+// `gitquest-web` in GitQuest's render.yaml; change both if it's renamed.
+export const GITQUEST_URL = 'https://gitquest-web.onrender.com';
 
 // One code per mission, written into COMPLETION_JSON_PATH by the station
 // commit that ends it. GitQuest reads the commit by this marker, so the

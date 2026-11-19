@@ -31,7 +31,9 @@ in it is followed by an image loaded from this folder.
   (\`https://raw.githubusercontent.com/<their repo>/<default branch>/.github/screenshots/<name>.png\`),
   filled in when the issue is created. Their copy is public, so GitHub can
   show it, and the images come with every copy of the template.
-- If a file is missing, the issue shows a broken image under its line.
+- If a file is missing when the issue is created, the caption and the image are
+  both left out, so nobody sees a broken image. Adding the file later doesn't
+  change issues that already exist.
 
 ## Changing them
 

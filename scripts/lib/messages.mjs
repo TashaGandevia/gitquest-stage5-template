@@ -175,7 +175,7 @@ export const discrepancyNeedsTemplate = say('station', '19:15', 'Station control
 
 export const discrepancyAlreadyRecorded = (issue) => say('station', '19:35', `Discrepancy #${issue} is already on record for tonight. You can close this one.`);
 
-export const mikaHandoverReady = say('mika', '20:10', "That says what the next shift needs. The berth is planned, the bay is on hold, and the condition is clear. Merge it.");
+export const mikaHandoverReady = say('mika', '20:10', "That says what the next shift needs. The berth is planned, the bay is on hold, and the condition is clear. Merge it once Record checks and Handover readiness are both green.");
 
 export const handoverMergedWaiting = say('station', '20:15', "The handover is merged and its records pass. One thing is missing: a **Record discrepancy** issue for Mika's original instruction. File it, and station control finishes the mission.");
 
